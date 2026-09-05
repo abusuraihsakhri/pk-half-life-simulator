@@ -1,6 +1,6 @@
-# Pk Half Life Simulator
+# PK Half-Life Simulator
 
-> **Domain:** Clinical Decision Support & Biomedical Computing  
+> **Domain:** Clinical Decision Support & Biomedical Computing
 > **Reference Guidelines & Standards:** `Standard Clinical Formulations & ISO/IEC Quality Frameworks`
 
 <div align="center">
@@ -18,88 +18,108 @@
 
 ## 📖 What It Does
 
-PK Half-Life Simulator
-One-compartment IV bolus PK: half-life, Vd, CL, AUC and concentration-time curve.
-Stdlib only.
+PK Half-Life Simulator is a clinical pharmacokinetics toolkit providing:
+
+- **One-compartment IV bolus PK**: half-life, Vd, CL, AUC and concentration-time curve
+- **Clinical scoring functions**: MELD-Na, QTc (Bazett/Fridericia), BMI z-score, HbA1c conversion, APRI/FIB-4
+- **Multi-agent supervision system** with specialized workers for QC, safety, and protocol conformance
+- **Zero-PHI outbound guard** protecting against HIPAA violations
+- **HMAC-SHA256 tamper-evident audit trail** for all evaluations
 
 ---
 
 ## ⚙️ Key Capabilities & Algorithmic Modules
 
-### 🔬 Analytical Functions
+### 🔬 Clinical Scoring Functions
 
-- **`calculate_score()`**: Generic formula stub: weighted sum of numeric inputs.
-- **`assess_row()`** — calculates and validates assess_row parameters.
-- **`process_csv()`** — calculates and validates process_csv parameters.
-- **`build_parser()`** — calculates and validates build_parser parameters.
-- **`main()`** — calculates and validates main parameters.
+| Function | Description | Inputs |
+|:---------|:------------|:-------|
+| `calculate_meld_na()` | MELD/MELD-Na liver disease severity score | bilirubin, creatinine, INR, sodium, dialysis, albumin |
+| `calculate_qtc()` | Corrected QT interval (Bazett or Fridericia) | QT, RR or heart rate |
+| `calculate_bmi_z()` | BMI calculation with categorization | weight, height, age |
+| `convert_hba1c()` | HbA1c ↔ eAG conversion | HbA1c (%) or eAG (mg/dL) |
+| `calculate_apri_fib4()` | Liver fibrosis assessment scores | AST, ALT, platelets, age |
+
+### 🛡️ Security & Audit
+
+- **PHI Outbound Guard**: Regex-based detection and blocking of SSNs, MRNs, phone numbers, emails, and patient identifiers
+- **HMAC-SHA256 Audit Trail**: Cryptographically chained logs with tamper detection
+- **Zero-PHI enforcement** at all API and supervisor entry points
 
 ---
 
-## 📐 Mathematical Formulation & Logic
+## 💻 Installation
 
-```text
-  """Generic formula stub: weighted sum of numeric inputs."""
-  score = sum(vals) * (0.9 + h*0.02) + math.log1p(len(vals))
-  return calculate_score(**row)
+```bash
+# Clone the repository
+git clone https://github.com/abusuraihsakhri/pk-half-life-simulator.git
+cd pk-half-life-simulator
+
+# Create virtual environment
+python -m venv .venv
+source .venv/bin/activate  # Linux/Mac
+# .venv\Scripts\activate  # Windows
+
+# Install dependencies
+pip install -e ".[dev]"
+
+# Set up environment
+cp .env.example .env
+# Edit .env and set AUDIT_SECRET_KEY
+```
+
+### Environment Variables
+
+| Variable | Description | Required |
+|:---------|:------------|:---------|
+| `AUDIT_SECRET_KEY` | Secret key for HMAC audit signing | Yes |
+| `MODEL_PROVIDER` | LLM provider: `mock`, `ollama`, `claude`, `openai` | No (default: mock) |
+
+Generate a secure key:
+```bash
+python -c "import secrets; print(secrets.token_hex(32))"
 ```
 
 ---
 
-## 💻 CLI Quickstart & Usage
+## 🚀 Quickstart
 
-### 1. Guided Interactive Mode
+### 1. Direct Clinical Scoring (pk_sim.py)
+
 ```bash
-python cli.py
+# MELD-Na Score
+python pk_sim.py single --bili 2.0 --creat 1.2 --inr 1.5 --na 135
+
+# QTc Calculation
+python pk_sim.py single --qt 420 --hr 70
+
+# JSON Input
+python pk_sim.py single --json '{"bilirubin": 2.0, "creatinine": 1.2, "inr": 1.5}'
+
+# Batch CSV Processing
+python pk_sim.py batch --input sample.csv --output results.csv
 ```
 
-### 2. Direct Parameterized Evaluation
+### 2. Supervisor System (cli.py)
+
 ```bash
-python cli.py --task-id <value> --target <value> --primary <value> --secondary <value>
+# Run single task evaluation
+python cli.py audit --task-id TASK-001 --primary 28.5 --secondary 14.2
+
+# Batch processing
+python cli.py batch -i sample.csv -o results.csv
+
+# Verify audit trail integrity
+python cli.py verify-audit
+
+# Interactive chat
+python cli.py chat "Explain the MELD-Na scoring system"
 ```
 
-### Parameter Reference
-- `--task-id`: Specifies input measurement or parameter value.
-- `--target`: Specifies input measurement or parameter value.
-- `--primary`: Specifies input measurement or parameter value.
-- `--secondary`: Specifies input measurement or parameter value.
-- `--critical`: Specifies input measurement or parameter value.
-- `--status`: Specifies input measurement or parameter value.
-- `--input`: Specifies input measurement or parameter value.
-- `--output`: Specifies input measurement or parameter value.
-
-### Input Data Schema
-
-| Field | Description | Requirement |
-|:------|:------------|:------------|
-| `id` | Parameter / observation metric | Required |
-| `value` | Parameter / observation metric | Required |
-| `qty` | Parameter / observation metric | Required |
-
----
-
-## 🛡️ Security & Enterprise Architecture
-
-* **Zero-PHI Outbound Interceptor:** Active AST and regex inspection blocking SSNs, MRNs, phone numbers, and patient identifiers.
-* **Tamper-Evident HMAC-SHA256 Audit Trail:** Chained, cryptographically signed logs for every evaluation and state transition.
-* **Air-Gapped LLM Reasoning Adapter:** Agnostic integration for local Ollama instances (`llama3`, `mistral`), Claude 3.5 Sonnet, GPT-4o, and deterministic test mocks.
-* **Active Learning Bayesian Calibration:** Dynamic tracker updating worker reliability weights and monitoring Brier calibration drift.
-* **FastAPI & Prometheus Telemetry:** Exposes OpenAPI 3.1 REST endpoints and operational Prometheus metrics (`/metrics`).
-
----
-
-## 🧪 Testing & Verification
-
-Run the automated test suite:
+### 3. High-Throughput Simulation
 
 ```bash
-pytest -v
-```
-
-Execute high-throughput batch simulation benchmarks:
-
-```bash
-python simulator.py --tasks 1000 --concurrency 8
+python simulator.py --tasks 1000
 ```
 
 ---
@@ -107,6 +127,88 @@ python simulator.py --tasks 1000 --concurrency 8
 ## 🐳 Container Deployment
 
 ```bash
+# Build and run
+docker compose up --build
+
+# Or manually
 docker build -t pk-half-life-simulator .
-docker run -p 8000:8000 pk-half-life-simulator
+docker run -p 8000:8000 --env-file .env pk-half-life-simulator
 ```
+
+The API will be available at `http://localhost:8000`
+
+### API Endpoints
+
+| Endpoint | Method | Description |
+|:---------|:-------|:------------|
+| `/health` | GET | Health check |
+| `/metrics` | GET | System metrics |
+| `/api/audit` | POST | Submit task for evaluation |
+| `/api/chat` | POST | Supervisory chat |
+| `/api/audit/logs` | GET | Retrieve audit trail |
+
+---
+
+## 🧪 Testing
+
+```bash
+# Run all tests
+pytest -v
+
+# Run with coverage
+pytest --cov=. --cov-report=html
+
+# Run specific test file
+pytest tests/test_pk_half_life_simulator.py -v
+```
+
+---
+
+## 📐 Mathematical Formulations
+
+### MELD Score
+```
+MELD = 3.78 × ln(bilirubin) + 11.2 × ln(INR) + 9.57 × ln(creatinine) + 6.43
+MELD-Na = MELD + 1.32 × (137 - Na) - [0.033 × MELD × (137 - Na)]
+```
+
+### QTc (Bazett)
+```
+QTc = QT / √(RR in seconds)
+```
+
+### HbA1c ↔ eAG
+```
+eAG (mg/dL) = 28.7 × HbA1c(%) - 46.7
+```
+
+### APRI
+```
+APRI = ((AST / AST_ULN) × 100) / platelets
+```
+
+### FIB-4
+```
+FIB-4 = (age × AST) / (platelets × √ALT)
+```
+
+---
+
+## 🛡️ Security Features
+
+- **Zero-PHI Outbound Interceptor**: Active regex inspection blocking SSNs, MRNs, phone numbers, emails, and patient identifiers
+- **Tamper-Evident HMAC-SHA256 Audit Trail**: Chained, cryptographically signed logs for every evaluation
+- **Environment-based secrets**: No hardcoded credentials; `AUDIT_SECRET_KEY` must be provided via environment
+
+---
+
+## 📄 License
+
+MIT License - see [LICENSE](LICENSE) for details.
+
+---
+
+## 📞 Contact
+
+- **Author:** Dr. Abu Suraih Sakhri
+- **GitHub:** [@abusuraihsakhri](https://github.com/abusuraihsakhri)
