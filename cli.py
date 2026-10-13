@@ -5,11 +5,6 @@ import argparse
 import csv
 import json
 import sys
-from agents.models import SystemTaskPayload
-from agents.supervisor import SystemSupervisor
-from agents.base import AuditLogger
-
-supervisor = SystemSupervisor(model_provider="mock")
 
 
 def main(argv=None):
@@ -42,7 +37,34 @@ def main(argv=None):
     p_serve.add_argument("--host", default="127.0.0.1")
     p_serve.add_argument("--port", type=int, default=8000)
 
+
+    p_pk = subparsers.add_parser("pk", help="Run educational one-compartment IV bolus simulation")
+    p_pk.add_argument("--dose", required=True, type=float, help="Dose in mg")
+    p_pk.add_argument("--volume", required=True, type=float, help="Volume of distribution in L")
+    p_pk.add_argument("--half-life", required=True, type=float, help="Elimination half-life in hours")
+    p_pk.add_argument("--hours", type=float, default=48, help="Duration in hours")
+    p_pk.add_argument("--interval", type=float, help="Optional repeated-dose interval in hours")
+    p_pk.add_argument("--points", type=int, default=241)
+
     args = parser.parse_args(argv)
+
+    if args.command == "pk":
+        from pk_model import simulate_iv_bolus
+        try:
+            result = simulate_iv_bolus(
+                dose_mg=args.dose, volume_l=args.volume,
+                half_life_h=args.half_life, horizon_h=args.hours,
+                interval_h=args.interval, points=args.points
+            )
+        except ValueError as exc:
+            parser.error(str(exc))
+        print(json.dumps(result, indent=2, allow_nan=False))
+        return 0
+
+    from agents.models import SystemTaskPayload
+    from agents.supervisor import SystemSupervisor
+    from agents.base import AuditLogger
+    supervisor = SystemSupervisor(model_provider="mock")
 
     if args.command == "audit":
         payload = SystemTaskPayload(
@@ -94,7 +116,7 @@ def main(argv=None):
                 primary_metric=float(r.get("primary_metric", 15.0)),
                 secondary_metric=float(r.get("secondary_metric", 5.0)),
                 status_descriptor=r.get("status_descriptor", "NOMINAL"),
-                is_critical_flag=bool(r.get("is_critical_flag", False)),
+                is_critical_flag=str(r.get("is_critical_flag", "false")).strip().lower() in {"1", "true", "yes", "y"},
             )
             dossier = supervisor.process_task(payload)
             row_dict = dict(r)
