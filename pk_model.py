@@ -44,6 +44,8 @@ def simulate_iv_bolus(
     clearance = k * volume_l
     c0 = dose_mg / volume_l
     dose_auc = dose_mg / clearance
+    if not all(math.isfinite(v) and v > 0 for v in (k, clearance, c0, dose_auc)):
+        raise ValueError("Parameters exceed safe numerical precision")
     tau = interval_h
     decay_interval = math.exp(-k * tau) if tau is not None else None
     accumulation = 1.0 / (-math.expm1(-k * tau)) if tau is not None else 1.0

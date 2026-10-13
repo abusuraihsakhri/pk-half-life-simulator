@@ -5,11 +5,6 @@ import argparse
 import csv
 import json
 import sys
-from agents.models import SystemTaskPayload
-from agents.supervisor import SystemSupervisor
-from agents.base import AuditLogger
-
-supervisor = SystemSupervisor(model_provider="mock")
 
 
 def main(argv=None):
@@ -65,6 +60,11 @@ def main(argv=None):
             parser.error(str(exc))
         print(json.dumps(result, indent=2, allow_nan=False))
         return 0
+
+    from agents.models import SystemTaskPayload
+    from agents.supervisor import SystemSupervisor
+    from agents.base import AuditLogger
+    supervisor = SystemSupervisor(model_provider="mock")
 
     if args.command == "audit":
         payload = SystemTaskPayload(

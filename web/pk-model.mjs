@@ -19,6 +19,9 @@ export function simulatePk({ dose, volume, halfLife, horizon, interval = null, s
   const clearance = k * volume;
   const c0 = dose / volume;
   const aucInf = dose / clearance;
+  if (![k, clearance, c0, aucInf].every(v => Number.isFinite(v) && v > 0)) {
+    throw new Error('Parameters exceed safe numerical precision.');
+  }
   const accumulated = interval === null ? 1 : 1 / (-Math.expm1(-k * interval));
   const q = interval === null ? null : Math.exp(-k * interval);
   function at(t) {

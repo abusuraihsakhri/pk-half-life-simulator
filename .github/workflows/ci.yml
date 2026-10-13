@@ -29,6 +29,8 @@ jobs:
         run: python -m compileall -q agents cli.py pk_sim.py pk_model.py simulator.py enrichment.py
       - name: Run Python tests
         run: python -m pytest -q
+      - name: PK CLI runs without audit credentials
+        run: env -u AUDIT_SECRET_KEY python cli.py pk --dose 500 --volume 40 --half-life 6 --hours 12 --points 3 > /dev/null
       - name: Verify HMAC module
         run: python -c "from agents.base import AuditLogger; assert AuditLogger.verify_integrity()"
   browser:
