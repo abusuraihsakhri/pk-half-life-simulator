@@ -41,3 +41,9 @@ pk-half-life-simulator = "cli:main"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
+
+[tool.setuptools]
+py-modules = ["cli", "pk_sim", "pk_model", "simulator", "enrichment"]
+
+[tool.setuptools.packages.find]
+include = ["agents*"]
