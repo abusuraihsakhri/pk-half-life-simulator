@@ -1,214 +1,73 @@
 # PK Half-Life Simulator
 
-> **Domain:** Clinical Decision Support & Biomedical Computing
-> **Reference Guidelines & Standards:** `Standard Clinical Formulations & ISO/IEC Quality Frameworks`
+A deterministic, one-compartment intravenous bolus pharmacokinetic simulator for research and teaching. The browser app calculates locally and does not require a backend.
 
-<div align="center">
+## Features
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB.svg?logo=python&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688.svg?logo=fastapi&logoColor=white)
-![Audit Trail](https://img.shields.io/badge/Audit-HMAC--SHA256_Tamper--Evident-brightgreen.svg)
-![Zero-PHI Guard](https://img.shields.io/badge/Guard-Zero--PHI_Outbound-blue.svg)
-![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker&logoColor=white)
+- Single IV bolus or repeated doses at a fixed interval.
+- Concentration–time curve, elimination rate constant, derived clearance, initial concentration, and single-dose AUC to infinity.
+- AUC over a selected simulation horizon; theoretical steady-state peak, trough, and accumulation factor for repeat dosing.
+- CSV export of sampled concentration and cumulative exposure.
+- A reference Python implementation in `pk_model.py` plus independent analytical tests.
+- Retained legacy clinical utility functions (`pk_sim.py`) and experimental audit-agent CLI/API.
 
-</div>
+**Educational use only.** The PK model assumes instantaneous distribution into one homogeneous compartment, first-order linear elimination, and constant volume/clearance. It does not represent absorption, distribution phases, interpatient variability, organ dysfunction, drug interactions, or therapeutic/toxic concentrations. It must not be used to prescribe or adjust patient medication.
 
----
+## Browser application
 
-## 📖 What It Does
+The `web/` directory contains a dependency-free HTML/CSS/JavaScript application suitable for static hosting, including GitHub Pages. No account, API key, Pyodide, or server is required. All entered parameters remain in browser memory and are not transmitted or stored by the app. The standalone application does not load third-party scripts.
 
-PK Half-Life Simulator is a clinical pharmacokinetics toolkit providing:
-
-- **One-compartment IV bolus PK**: half-life, Vd, CL, AUC and concentration-time curve
-- **Clinical scoring functions**: MELD-Na, QTc (Bazett/Fridericia), BMI z-score, HbA1c conversion, APRI/FIB-4
-- **Multi-agent supervision system** with specialized workers for QC, safety, and protocol conformance
-- **Zero-PHI outbound guard** protecting against HIPAA violations
-- **HMAC-SHA256 tamper-evident audit trail** for all evaluations
-
----
-
-## ⚙️ Key Capabilities & Algorithmic Modules
-
-### 🔬 Clinical Scoring Functions
-
-| Function | Description | Inputs |
-|:---------|:------------|:-------|
-| `calculate_meld_na()` | MELD/MELD-Na liver disease severity score | bilirubin, creatinine, INR, sodium, dialysis, albumin |
-| `calculate_qtc()` | Corrected QT interval (Bazett or Fridericia) | QT, RR or heart rate |
-| `calculate_bmi_z()` | BMI calculation with categorization | weight, height, age |
-| `convert_hba1c()` | HbA1c ↔ eAG conversion | HbA1c (%) or eAG (mg/dL) |
-| `calculate_apri_fib4()` | Liver fibrosis assessment scores | AST, ALT, platelets, age |
-
-### 🛡️ Security & Audit
-
-- **PHI Outbound Guard**: Regex-based detection and blocking of SSNs, MRNs, phone numbers, emails, and patient identifiers
-- **HMAC-SHA256 Audit Trail**: Cryptographically chained logs with tamper detection
-- **Zero-PHI enforcement** at all API and supervisor entry points
-
----
-
-## 💻 Installation
+To run locally from the repository root:
 
 ```bash
-# Clone the repository
-git clone https://github.com/abusuraihsakhri/pk-half-life-simulator.git
-cd pk-half-life-simulator
-
-# Create virtual environment
-python -m venv .venv
-source .venv/bin/activate  # Linux/Mac
-# .venv\Scripts\activate  # Windows
-
-# Install dependencies
-pip install -e ".[dev]"
-
-# Set up environment
-cp .env.example .env
-# Edit .env and set AUDIT_SECRET_KEY
+python -m http.server 8000 -d web
+# Open http://localhost:8000/
 ```
 
-### Environment Variables
+Enter dose (mg), volume of distribution (L), half-life (hours), simulation duration (hours), and optionally the repeat-dose interval (hours). Clear the interval field for a single dose. Press **Calculate** and optionally **Export CSV**.
 
-| Variable | Description | Required |
-|:---------|:------------|:---------|
-| `AUDIT_SECRET_KEY` | Secret key for HMAC audit signing | Yes |
-| `MODEL_PROVIDER` | LLM provider: `mock`, `ollama`, `claude`, `openai` | No (default: mock) |
+Concentrations on an administration boundary represent the instant *after* dosing. The steady-state peak/trough figures assume indefinitely repeated boluses and are not the same as finite-horizon values. The reported AUC∞ is for **one dose**; the horizon AUC includes all doses during the simulated period.
 
-Generate a secure key:
-```bash
-python -c "import secrets; print(secrets.token_hex(32))"
-```
+## Python
 
----
-
-## 🚀 Quickstart
-
-### 1. Direct Clinical Scoring (pk_sim.py)
+Requires Python 3.10+.
 
 ```bash
-# MELD-Na Score
-python pk_sim.py single --bili 2.0 --creat 1.2 --inr 1.5 --na 135
+python -m pip install -e '.[dev]'
+python -m pytest -q
 
-# QTc Calculation
+# The new PK CLI
+python cli.py pk --dose 500 --volume 40 --half-life 6 --hours 48 --interval 12
+
+# Direct reference model
+python - <<'PY'
+from pk_model import simulate_iv_bolus
+print(simulate_iv_bolus(500, 40, 6, horizon_h=48, interval_h=12)['summary'])
+PY
+
+# Existing legacy QTc utility
 python pk_sim.py single --qt 420 --hr 70
-
-# JSON Input
-python pk_sim.py single --json '{"bilirubin": 2.0, "creatinine": 1.2, "inr": 1.5}'
-
-# Batch CSV Processing
-python pk_sim.py batch --input sample.csv --output results.csv
 ```
 
-### 2. Supervisor System (cli.py)
+### Optional backend
+
+The existing audit-agent CLI/FastAPI system is retained for compatibility. Configure a private `AUDIT_SECRET_KEY` before importing or starting those modules (see `.env.example`). A key can be generated with `python -c "import secrets; print(secrets.token_hex(32))"`. Never commit it or embed it in browser code.
 
 ```bash
-# Run single task evaluation
-python cli.py audit --task-id TASK-001 --primary 28.5 --secondary 14.2
-
-# Batch processing
-python cli.py batch -i sample.csv -o results.csv
-
-# Verify audit trail integrity
-python cli.py verify-audit
-
-# Interactive chat
-python cli.py chat "Explain the MELD-Na scoring system"
+python cli.py serve
+# POST /api/pk/simulate — deterministic PK model
+# GET /health — service status
+# Existing /api/audit, /api/chat, /api/audit/logs, /metrics also remain
 ```
 
-### 3. High-Throughput Simulation
+The audit subsystem's mock provider is **not** a clinical language-model service. Its regex identifier screen is **not** comprehensive PHI detection or guaranteed HIPAA de-identification. Its HMAC audit chain is in memory, not an immutable/persistent audit store. Legacy clinical scoring routines should be independently reviewed before any medical application; for example `calculate_bmi_z` computes adult-category BMI, not a validated age/sex-based z-score.
 
-```bash
-python simulator.py --tasks 1000
-```
+## Tests, deployment, compatibility
 
----
+GitHub Actions runs the Python test suite on 3.10–3.12, a signing-key-isolated module check, and Node.js tests for the independent browser model. The Pages workflow publishes `web/` when GitHub Pages is configured for GitHub Actions deployments. The browser code uses standard ES modules; modern Chrome, Firefox, Safari, and Edge are intended. JavaScript must be enabled.
 
-## 🐳 Container Deployment
+For Docker, `docker compose up --build` starts the **backend**, not the static GitHub Pages app. Docker requires a private `AUDIT_SECRET_KEY` in the environment.
 
-```bash
-# Build and run
-docker compose up --build
+## License
 
-# Or manually
-docker build -t pk-half-life-simulator .
-docker run -p 8000:8000 --env-file .env pk-half-life-simulator
-```
-
-The API will be available at `http://localhost:8000`
-
-### API Endpoints
-
-| Endpoint | Method | Description |
-|:---------|:-------|:------------|
-| `/health` | GET | Health check |
-| `/metrics` | GET | System metrics |
-| `/api/audit` | POST | Submit task for evaluation |
-| `/api/chat` | POST | Supervisory chat |
-| `/api/audit/logs` | GET | Retrieve audit trail |
-
----
-
-## 🧪 Testing
-
-```bash
-# Run all tests
-pytest -v
-
-# Run with coverage
-pytest --cov=. --cov-report=html
-
-# Run specific test file
-pytest tests/test_pk_half_life_simulator.py -v
-```
-
----
-
-## 📐 Mathematical Formulations
-
-### MELD Score
-```
-MELD = 3.78 × ln(bilirubin) + 11.2 × ln(INR) + 9.57 × ln(creatinine) + 6.43
-MELD-Na = MELD + 1.32 × (137 - Na) - [0.033 × MELD × (137 - Na)]
-```
-
-### QTc (Bazett)
-```
-QTc = QT / √(RR in seconds)
-```
-
-### HbA1c ↔ eAG
-```
-eAG (mg/dL) = 28.7 × HbA1c(%) - 46.7
-```
-
-### APRI
-```
-APRI = ((AST / AST_ULN) × 100) / platelets
-```
-
-### FIB-4
-```
-FIB-4 = (age × AST) / (platelets × √ALT)
-```
-
----
-
-## 🛡️ Security Features
-
-- **Zero-PHI Outbound Interceptor**: Active regex inspection blocking SSNs, MRNs, phone numbers, emails, and patient identifiers
-- **Tamper-Evident HMAC-SHA256 Audit Trail**: Chained, cryptographically signed logs for every evaluation
-- **Environment-based secrets**: No hardcoded credentials; `AUDIT_SECRET_KEY` must be provided via environment
-
----
-
-## 📄 License
-
-MIT License - see [LICENSE](LICENSE) for details.
-
----
-
-## 📞 Contact
-
-- **Author:** Dr. Abu Suraih Sakhri
-- **GitHub:** [@abusuraihsakhri](https://github.com/abusuraihsakhri)
+MIT — see [LICENSE](LICENSE).

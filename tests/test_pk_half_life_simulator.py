@@ -475,3 +475,18 @@ def test_phi_blocking_in_supervisor():
     )
     with pytest.raises(SecurityException):
         supervisor.process_task(payload)
+
+
+def test_audit_trail_detects_modified_signed_fields():
+    trail = AuditTrail(secret_key="test-signing-key-only")
+    entry = trail.log("tester", "unit", "TEST_EVENT", {"ok": True})
+    entry["event_type"] = "ALTERED"
+    assert trail.verify_integrity() is False
+
+
+def test_new_pk_cli(capsys):
+    assert main(["pk", "--dose", "500", "--volume", "40", "--half-life", "6", "--hours", "12", "--points", "3"]) == 0
+    import json
+    result = json.loads(capsys.readouterr().out)
+    assert result["summary"]["initial_concentration_mg_l"] == 12.5
+    assert len(result["series"]) == 3
